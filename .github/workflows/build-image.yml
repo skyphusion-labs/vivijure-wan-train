@@ -50,10 +50,11 @@ jobs:
 
       - name: Resolve config
         id: cfg
+        env:
+          VER: ${{ github.event.inputs.version }}
+          REF: ${{ github.event.inputs.aitoolkit_ref }}
         run: |
           set -eu
-          VER='${{ github.event.inputs.version }}'
-          REF='${{ github.event.inputs.aitoolkit_ref }}'
           case "${VER}" in ''|*[!0-9.]*) echo "::error::version must be digits + dots"; exit 1;; esac
           [ "${#REF}" -eq 40 ] || { echo "::error::aitoolkit_ref must be 40-char hex"; exit 1; }
           echo "tag=train-${VER}" >> "$GITHUB_OUTPUT"

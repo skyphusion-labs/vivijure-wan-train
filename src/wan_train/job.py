@@ -48,6 +48,10 @@ def run_train_job(
 ) -> dict:
     """End-to-end Wan train_lora job. Returns the control-plane result dict."""
     req = TrainRequest.from_dict(job)
+    try:
+        keys.check_project_slug(req.project, what="train_lora")
+    except ValueError as e:
+        raise JobError(str(e)) from None
     if req.action != "train_lora":
         raise JobError(f"unsupported action {req.action!r}; this endpoint only handles train_lora")
     family = str(req.model_family or "wan").strip().lower()

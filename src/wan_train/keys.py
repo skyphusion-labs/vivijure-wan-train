@@ -9,6 +9,17 @@ def _slug(project: str) -> str:
     return "_".join(str(project).strip().split()).replace("/", "_") or "untitled"
 
 
+def check_project_slug(project: str, *, what: str = "project") -> str:
+    """Reject display names that collapse to the same R2 prefix under _slug."""
+    raw = str(project or "").strip()
+    slug = _slug(raw)
+    if not raw or raw != slug:
+        raise ValueError(
+            f"{what}: project {raw!r} must be a canonical slug (no whitespace or '/'; "
+            f"use {slug!r} instead)")
+    return slug
+
+
 def wan_lora_key(project: str, slot: str, expert: str) -> str:
     e = str(expert).strip().lower()
     if e not in ("high", "low"):
