@@ -11,7 +11,7 @@ import yaml
 from wan_train import keys
 from wan_train import wan_lora_train as W
 from wan_train.contract import Character
-from wan_train.job import run_train_job
+from wan_train.job import run_train_job, JobError
 
 
 def test_wan_lora_key_layout_and_guard():
@@ -110,6 +110,20 @@ def _trained_pair(char, out_dir, **_kw):
         slot=char.slot, high_path=hi, low_path=lo, trigger=char.name,
         steps=100, rank=32, ref_count=1, base_repo="/b",
     )
+
+
+def test_job_rejects_cross_project_bundle_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(W, "wan_train_runtime_ready", lambda: True)
+    store = _FakeStore(_wan_bundle_tar(tmp_path / "b.tar.gz"))
+    with pytest.raises(JobError, match="bundle_key"):
+        run_train_job(
+            {"action": "train_lora", "project": "neon", "bundle_key": "bundles/victim.tar.gz"},
+            store=store, workdir=tmp_path / "work")
+
+
+def test_bundle_key_matches_project():
+    assert keys.bundle_key_matches_project("bundles/neon.tar.gz", "neon")
+    assert not keys.bundle_key_matches_project("bundles/victim.tar.gz", "neon")
 
 
 def test_job_uploads_both_experts(tmp_path, monkeypatch):
