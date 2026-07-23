@@ -56,6 +56,11 @@ def handler(job: dict) -> dict:
         ready = W.wan_train_runtime_ready()
         return {"ok": ready, "action": "health", "runtime_ready": ready}
     job_id = str((job or {}).get("id") or "local")
+    try:
+        from wan_train import keys
+        keys.check_job_id_slug(job_id, what="job_id")
+    except ValueError as e:
+        return {"ok": False, "error": redact_error_message(e)}
     base = os.environ.get("WAN_TRAIN_WORKDIR")
     if base:
         work = Path(base) / job_id

@@ -132,6 +132,62 @@ def test_check_project_slug_rejects_colliding_display_names():
         keys.check_project_slug("a b")
     with pytest.raises(ValueError, match="canonical slug"):
         keys.check_project_slug("a  b")
+    with pytest.raises(ValueError, match="canonical slug"):
+        keys.check_project_slug("foo/bar")
+
+
+def test_check_job_key_rejects_percent_encoding():
+    with pytest.raises(ValueError, match="R2 key"):
+        keys.check_job_key("bundles/foo%2Fbar.tar.gz", prefixes=("bundles/",), what="bundle_key")
+
+
+def test_bundle_segment_must_match_project_slug():
+    assert keys.bundle_key_matches_project("bundles/neon/story.tar.gz", "neon")
+    assert not keys.bundle_key_matches_project("bundles/victim/story.tar.gz", "neon")
+    assert not keys.bundle_key_matches_project("bundles/neon-victim.tar.gz", "neon")
+
+
+def test_check_pretrained_lora_key_exact_filename():
+    good = keys.wan_lora_key("neon", "A", "high")
+    keys.check_pretrained_lora_key(good, project="neon", slot="A", what="test")
+    with pytest.raises(ValueError, match="must be"):
+        keys.check_pretrained_lora_key(
+            "loras/neon/A/wan_high_noise.safetensors", project="neon", slot="B", what="test")
+    with pytest.raises(ValueError, match="must be"):
+        keys.check_pretrained_lora_key(
+            "loras/neon/B/custom.safetensors", project="neon", slot="B", what="test")
+
+
+def test_safe_extract_rejects_symlink_member(tmp_path):
+    from wan_train.contract import _safe_extract
+    dest = tmp_path / "out"
+    dest.mkdir()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        info = tarfile.TarInfo(name="link")
+        info.type = tarfile.SYMTYPE
+        info.linkname = "storyboard.yaml"
+        info.size = 0
+        tf.addfile(info)
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tf:
+        with pytest.raises(ValueError, match="unsafe link"):
+            _safe_extract(tf, dest)
+
+
+def test_safe_extract_rejects_absolute_member(tmp_path):
+    from wan_train.contract import _safe_extract
+    dest = tmp_path / "out"
+    dest.mkdir()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        info = tarfile.TarInfo(name="/etc/passwd")
+        info.size = 0
+        tf.addfile(info)
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tf:
+        with pytest.raises(ValueError, match="absolute path"):
+            _safe_extract(tf, dest)
 
 
 def test_job_rejects_non_canonical_project(tmp_path, monkeypatch):

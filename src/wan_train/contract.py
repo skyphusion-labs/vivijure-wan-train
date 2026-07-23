@@ -103,16 +103,24 @@ class Bundle:
 
 
 def _safe_extract(tf: tarfile.TarFile, dest: Path) -> None:
+    """Extract bundle members one at a time after full validation (K3 tar/symlink closeout)."""
     dest = dest.resolve()
-    for member in tf.getmembers():
+    members = tf.getmembers()
+    for member in members:
+        name = member.name
+        if name.startswith(("/", "\\")):
+            raise ValueError(f"unsafe absolute path in bundle: {name}")
         if member.issym() or member.islnk():
-            raise ValueError(f"unsafe link in bundle: {member.name}")
+            raise ValueError(f"unsafe link in bundle: {name}")
         if member.isdev() or member.isfifo():
-            raise ValueError(f"unsafe special file in bundle: {member.name}")
-        target = (dest / member.name).resolve()
+            raise ValueError(f"unsafe special file in bundle: {name}")
+        if ".." in Path(name).parts:
+            raise ValueError(f"unsafe path in bundle: {name}")
+        target = (dest / name).resolve()
         if not target.is_relative_to(dest):
-            raise ValueError(f"unsafe path in bundle: {member.name}")
-    tf.extractall(dest)
+            raise ValueError(f"unsafe path in bundle: {name}")
+    for member in members:
+        tf.extract(member, dest, set_attrs=False)
 
 
 @dataclass

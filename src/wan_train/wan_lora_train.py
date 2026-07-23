@@ -84,6 +84,32 @@ _AITOOLKIT_TAIL_LINES = 40
 
 _IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 
+# Allowed roots for model paths written into ai-toolkit YAML (K3 config-injection guard).
+_SAFE_MODEL_ROOTS = (
+    Path("/opt/models"),
+    Path("/opt/ai-toolkit"),
+    Path("/root/.cache/huggingface"),
+)
+
+
+def _assert_safe_model_ref(repo_or_path: str, *, what: str) -> str:
+    """Reject shell/YAML metacharacters before a path or hub id enters ai-toolkit config."""
+    s = str(repo_or_path or "").strip()
+    if not s or any(c in s for c in ("\n", "\r", "\0", "$(", "`", "|", ";")):
+        raise ValueError(f"{what}: unsafe model reference {repo_or_path!r}")
+    return s
+
+
+def _assert_resolved_under_allowed_roots(path: Path, *, what: str) -> Path:
+    resolved = path.resolve()
+    for root in _SAFE_MODEL_ROOTS:
+        try:
+            resolved.relative_to(root.resolve())
+            return resolved
+        except ValueError:
+            continue
+    raise ValueError(f"{what}: resolved path {resolved} is outside allowed model roots")
+
 
 def default_wan_base_path() -> str:
     """The base path/id written into ai-toolkit config for a train run.
@@ -108,12 +134,13 @@ def resolve_local_hf_snapshot(repo_or_path: str) -> str:
     the weights are fully baked. Prefer bake-time stable dirs; snapshot_download(local_files_only=True)
     is the fallback resolver the train image asserts at bake time.
     """
+    repo_or_path = _assert_safe_model_ref(repo_or_path, what="base_repo")
     p = Path(repo_or_path)
     if p.is_dir():
-        return str(p.resolve())
+        return str(_assert_resolved_under_allowed_roots(p, what="base_repo"))
     # Hub id that matches the baked Wan base: prefer the stable symlink the image materializes.
     if repo_or_path == DEFAULT_WAN_BASE_REPO and Path(DEFAULT_WAN_BASE_PATH).is_dir():
-        return str(Path(DEFAULT_WAN_BASE_PATH).resolve())
+        return str(_assert_resolved_under_allowed_roots(Path(DEFAULT_WAN_BASE_PATH), what="base_repo"))
     from huggingface_hub import snapshot_download  # local: keep module import light for CPU tests
 
     try:
