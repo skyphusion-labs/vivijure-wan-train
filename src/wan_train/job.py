@@ -67,7 +67,10 @@ def run_train_job(
     try:
         if not req.bundle_key:
             raise JobError("train_lora: bundle_key is required")
-        _job_key(req.bundle_key, prefixes=("bundles/",), what="train_lora: bundle_key")
+        try:
+            keys.check_bundle_key_for_project(req.bundle_key, req.project, what="train_lora: bundle_key")
+        except ValueError as e:
+            raise JobError(str(e)) from None
         tar = store.get_file(req.bundle_key, workdir / "bundle.tar.gz")
         bundle = Bundle.extract(Path(tar), workdir / "project")
 

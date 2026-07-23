@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import posixpath
+import re
 
 
 def _slug(project: str) -> str:
@@ -29,6 +30,29 @@ def check_job_key(key: str, *, prefixes: tuple[str, ...], what: str) -> str:
         raise ValueError(
             f"{what}: R2 key {k!r} must be a plain relative key under "
             f"{' or '.join(prefixes)} (see the render key map)")
+    return k
+
+
+def bundle_key_matches_project(bundle_key: str, project: str) -> bool:
+    slug = _slug(project)
+    if not bundle_key.startswith("bundles/"):
+        return False
+    rest = bundle_key[len("bundles/"):]
+    if rest.startswith(f"{slug}/"):
+        return True
+    if rest == f"{slug}.tar.gz":
+        return True
+    return bool(re.fullmatch(re.escape(slug) + r"-[0-9a-f]{16}\.tar\.gz", rest))
+
+
+def check_bundle_key_for_project(bundle_key: str, project: str, *, what: str) -> str:
+    k = check_job_key(bundle_key, prefixes=("bundles/",), what=what)
+    if not bundle_key_matches_project(k, project):
+        slug = _slug(project)
+        raise ValueError(
+            f"{what}: bundle_key {k!r} must belong to project {project!r} "
+            f"(expected bundles/{slug}/..., bundles/{slug}.tar.gz, or "
+            f"bundles/{slug}-<contenthash>.tar.gz)")
     return k
 
 
