@@ -56,3 +56,6 @@ Documented K3 repo-mode findings that are accepted under the Vivijure GPU operat
 | 2026-07-23 | K3 verify ~18:04 | Pretrained LoRA bypass | Fixed exact filename guard |
 | 2026-07-23 | K3 verify ~18:04 | HF token CI leak | Fixed dedicated download script |
 | 2026-07-23 | K3 verify ~18:04 | Config injection | Fixed path allowlist + metachar reject |
+| 2026-07-23 | K3 post-#8 ~18:34 | job_id path segment | Fixed `check_job_id_slug` in handler + progress key builders |
+| 2026-07-23 | K3 post-#8 ~18:34 | HF_TOKEN in build env | Fixed dedicated script; GH Actions secret masking on step env |
+| 2026-07-23 | K3 post-#8 ~18:34 | Tar hardlink race | Fixed `_safe_extract` rejects `islnk()`/`issym()`; member-by-member extract |
