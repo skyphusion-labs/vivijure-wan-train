@@ -54,8 +54,13 @@ def handler(job: dict) -> dict:
         from wan_train import wan_lora_train as W
         ready = W.wan_train_runtime_ready()
         return {"ok": ready, "action": "health", "runtime_ready": ready}
-    work = Path(os.environ.get("WAN_TRAIN_WORKDIR", tempfile.mkdtemp(prefix="wan-train-")))
     job_id = str((job or {}).get("id") or "local")
+    base = os.environ.get("WAN_TRAIN_WORKDIR")
+    if base:
+        work = Path(base) / job_id
+        work.mkdir(parents=True, exist_ok=True)
+    else:
+        work = Path(tempfile.mkdtemp(prefix="wan-train-"))
     try:
         return run_job(job, store=_store(), workdir=work, job_id=job_id,
                        on_progress=(job or {}).get("progress_update"))

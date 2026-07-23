@@ -107,6 +107,8 @@ def _safe_extract(tf: tarfile.TarFile, dest: Path) -> None:
     for member in tf.getmembers():
         if member.issym() or member.islnk():
             raise ValueError(f"unsafe link in bundle: {member.name}")
+        if member.isdev() or member.isfifo():
+            raise ValueError(f"unsafe special file in bundle: {member.name}")
         target = (dest / member.name).resolve()
         if not target.is_relative_to(dest):
             raise ValueError(f"unsafe path in bundle: {member.name}")

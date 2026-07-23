@@ -126,6 +126,39 @@ def test_bundle_key_matches_project():
     assert not keys.bundle_key_matches_project("bundles/victim.tar.gz", "neon")
 
 
+def test_check_project_slug_rejects_colliding_display_names():
+    assert keys.check_project_slug("neon") == "neon"
+    with pytest.raises(ValueError, match="canonical slug"):
+        keys.check_project_slug("a b")
+    with pytest.raises(ValueError, match="canonical slug"):
+        keys.check_project_slug("a  b")
+
+
+def test_job_rejects_non_canonical_project(tmp_path, monkeypatch):
+    monkeypatch.setattr(W, "wan_train_runtime_ready", lambda: True)
+    store = _FakeStore(_wan_bundle_tar(tmp_path / "b.tar.gz"))
+    with pytest.raises(JobError, match="canonical slug"):
+        run_train_job(
+            {"action": "train_lora", "project": "a b", "bundle_key": "bundles/a_b.tar.gz"},
+            store=store, workdir=tmp_path / "work")
+
+
+def test_safe_extract_rejects_device_member(tmp_path):
+    from wan_train.contract import _safe_extract
+    dest = tmp_path / "out"
+    dest.mkdir()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        info = tarfile.TarInfo(name="dev/null")
+        info.type = tarfile.CHRTYPE
+        info.size = 0
+        tf.addfile(info)
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tf:
+        with pytest.raises(ValueError, match="special file"):
+            _safe_extract(tf, dest)
+
+
 def test_job_uploads_both_experts(tmp_path, monkeypatch):
     monkeypatch.setattr(W, "wan_train_runtime_ready", lambda: True)
     monkeypatch.setattr(W, "train_slot_wan", _trained_pair)
