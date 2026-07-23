@@ -107,7 +107,9 @@ def run_train_job(
 
         for slot, lora_id in req.pretrained_loras.items():
             try:
-                keys.check_scoped_lora_key(lora_id, project=req.project, what=f"pretrained LoRA for slot {slot}")
+                keys.check_pretrained_lora_key(
+                    lora_id, project=req.project, slot=slot,
+                    what=f"pretrained LoRA for slot {slot}")
             except ValueError as e:
                 raise JobError(str(e)) from None
             result.lora.setdefault(slot, {"lora_id": lora_id})
