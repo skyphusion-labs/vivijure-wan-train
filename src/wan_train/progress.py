@@ -66,8 +66,8 @@ class ProgressEmitter:
             snap = json.dumps(self._snapshot, separators=(",", ":")).encode("utf-8")
             self.store.put_bytes(snap, keys.progress_snapshot_key(self.project, self.job_id),
                                  content_type="application/json")
-        except Exception:
-            pass
+        except Exception as exc:
+            self._log(f"progress write failed: {type(exc).__name__}")
 
     def _hook(self) -> None:
         if not self.on_progress:
