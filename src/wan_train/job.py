@@ -6,7 +6,7 @@ from pathlib import Path
 from . import wan_lora_train as W
 from .contract import Bundle, TrainRequest, TrainResult
 from . import keys
-from .progress import NullEmitter, ProgressEmitter
+from .progress import ProgressEmitter
 
 
 class JobError(RuntimeError):

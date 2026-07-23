@@ -1,8 +1,6 @@
 """Bake-time stable dirs + ai-toolkit hub-id scrub tests."""
 from pathlib import Path
 
-import pytest
-
 from wan_train import wan_lora_train as W
 
 
