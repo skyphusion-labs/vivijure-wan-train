@@ -23,6 +23,7 @@ import runpod
 
 from wan_train.job import JobError, run_job
 from wan_train.r2 import R2, R2Config
+from wan_train.redact import redact_error_message
 
 
 def _store():
@@ -42,7 +43,7 @@ def _selftest(inp: dict) -> dict:
             out["error"] = "wan train runtime not ready (check VIVIJURE_AITOOLKIT_PYTHON and baked weights)"
         return out
     except Exception as e:
-        out["error"] = str(e)[:500]
+        out["error"] = redact_error_message(e)
         return out
 
 
@@ -65,9 +66,9 @@ def handler(job: dict) -> dict:
         return run_job(job, store=_store(), workdir=work, job_id=job_id,
                        on_progress=(job or {}).get("progress_update"))
     except JobError as e:
-        return {"ok": False, "error": str(e)[:500]}
+        return {"ok": False, "error": redact_error_message(e)}
     except Exception as e:
-        return {"ok": False, "error": str(e)[:500]}
+        return {"ok": False, "error": redact_error_message(e)}
 
 
 if __name__ == "__main__":
