@@ -67,6 +67,16 @@ def check_bundle_key_for_project(bundle_key: str, project: str, *, what: str) ->
     return k
 
 
+def check_scoped_lora_key(key: str, *, project: str, what: str) -> str:
+    """Validate a reused LoRA read key belongs to the job project."""
+    k = check_job_key(key, prefixes=("loras/",), what=what)
+    slug = _slug(project)
+    if not k.startswith(f"loras/{slug}/"):
+        raise ValueError(
+            f"{what}: R2 key {k!r} must be under loras/{slug}/ for project {project!r}")
+    return k
+
+
 def progress_log_key(project: str, job_id: str) -> str:
     return f"renders/{_slug(project)}/progress/{_slug(job_id)}.ndjson"
 
