@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Callable
 
 from . import keys
+
+_URL_RE = re.compile(r"https?://\S+")
 
 _COUNTED = ("train_done", "train_step", "upload_done", "wan_train_progress")
 
@@ -40,7 +43,8 @@ class ProgressEmitter:
         self.emit("complete", **fields)
 
     def error(self, stage: str, message: object) -> None:
-        self.emit("error", stage=stage, message=str(message)[:500])
+        safe = _URL_RE.sub("[url-redacted]", str(message)[:500])
+        self.emit("error", stage=stage, message=safe)
 
     def _update_snapshot(self, rec: dict) -> None:
         if self._snapshot["started_ts"] is None:
