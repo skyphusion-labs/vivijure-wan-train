@@ -59,3 +59,8 @@ Documented K3 repo-mode findings that are accepted under the Vivijure GPU operat
 | 2026-07-23 | K3 post-#8 ~18:34 | job_id path segment | Fixed `check_job_id_slug` in handler + progress key builders |
 | 2026-07-23 | K3 post-#8 ~18:34 | HF_TOKEN in build env | Fixed dedicated script; GH Actions secret masking on step env |
 | 2026-07-23 | K3 post-#8 ~18:34 | Tar hardlink race | Fixed `_safe_extract` rejects `islnk()`/`issym()`; member-by-member extract |
+| 2026-07-23 | K3 post-#8 ~18:34 | progress store ignores R2 write failures | **Fixed** -- log failures via `_log` channel |
+| 2026-07-23 | K3 post-#8 ~18:34 | ai-toolkit config path outside model roots | Workdir paths under operator-controlled WAN_TRAIN_WORKDIR |
+| 2026-07-23 | K3 post-#8 ~18:34 | CodeQL matrix language typo | **Fixed** -- workflow uses `languages:` plural |
+| 2026-07-23 | K3 post-#8 ~18:34 | Command injection via AITOOLKIT_PYTHON env | Operator GPU env; list-form Popen, no shell |
+| 2026-07-23 | K3 post-#8 ~18:34 | FakeStore metadata drift | Test-only interface; prod put_file has no metadata param |
