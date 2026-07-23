@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .redact import redact_error_message
+
 
 @dataclass(frozen=True)
 class R2Config:
@@ -45,13 +47,21 @@ class R2:
     def get_file(self, key: str, dest: Path) -> Path:
         dest = Path(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        head = self._client().head_object(Bucket=self.config.bucket, Key=key)
-        expected = head.get("ContentLength")
-        self._client().download_file(self.config.bucket, key, str(dest))
+        from botocore.exceptions import ClientError
+        try:
+            head = self._client().head_object(Bucket=self.config.bucket, Key=key)
+            expected = head.get("ContentLength")
+            self._client().download_file(self.config.bucket, key, str(dest))
+        except ClientError as e:
+            raise RuntimeError(redact_error_message(e)) from None
         actual = dest.stat().st_size
         if expected is not None and actual != expected:
             dest.unlink(missing_ok=True)
-            raise RuntimeError(f"R2 download truncated: {key!r} expected {expected} bytes, got {actual}")
+            raise RuntimeError(
+                redact_error_message(
+                    f"R2 download truncated: {key!r} expected {expected} bytes, got {actual}"
+                )
+            )
         return dest
 
     def exists(self, key: str) -> bool:

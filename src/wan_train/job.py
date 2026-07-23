@@ -7,6 +7,7 @@ from . import wan_lora_train as W
 from .contract import Bundle, TrainRequest, TrainResult
 from . import keys
 from .progress import ProgressEmitter
+from .redact import redact_error_message
 
 
 class JobError(RuntimeError):
@@ -113,9 +114,11 @@ def run_train_job(
 
         progress.complete(lora_slots=len(result.lora))
         return result.to_dict()
+    except JobError:
+        raise
     except Exception as e:
         progress.error("train", e)
-        raise
+        raise JobError(redact_error_message(e)) from None
 
 
 def run_job(job: dict, *, store, workdir: Path, job_id: str = "local", on_progress=None) -> dict:
