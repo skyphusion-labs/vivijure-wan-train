@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install gate tools
+        run: pip install ruff==0.15.20 pytest==9.1.1 PyYAML==6.0.2
+      - name: Lint
+        run: ruff check --select E9,F .
+      - name: Syntax-compile handler
+        run: PYTHONPATH=src python -m py_compile handler.py src/wan_train/*.py
+      - name: Unit tests
+        run: PYTHONPATH=src python -m pytest -q tests/
