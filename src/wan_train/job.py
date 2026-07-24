@@ -117,6 +117,7 @@ def run_train_job(
         progress.complete(lora_slots=len(result.lora))
         return result.to_dict()
     except JobError:
+        progress.close()   # terminal: flush + stop the writer thread on the raise path
         raise
     except Exception as e:
         progress.error("train", e)
