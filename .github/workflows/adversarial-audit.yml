@@ -3,9 +3,9 @@ name: Adversarial audit
 # LLM red-team advisory layer (CodeQL stays the gate).
 # Public repo: inline fleet-chezmoi script (cannot workflow_call private fleet-chezmoi).
 #   pr   -> @cf/moonshotai/kimi-k2.7-code on merge-base diff
-#   repo -> @cf/moonshotai/kimi-k2.7-code full tree (temp; was kimi-k3 until upstream green)
+#   repo -> moonshotai/kimi-k3 full tree (workflow_dispatch only; needs CF_AIG_TOKEN)
 #
-# Org secrets: ADVERSARIAL_AUDIT_CF_API_TOKEN (K2.7; pr + repo), CF_AIG_TOKEN (K3 when restored)
+# Org secrets: ADVERSARIAL_AUDIT_CF_API_TOKEN (K2.7 /ai/run), CF_AIG_TOKEN (K3 repo mode)
 # Org vars:    CLOUDFLARE_ACCOUNT_ID, AI_GATEWAY_ID
 # Org secret:  FLEET_CHEZMOI_READ_TOKEN (read-only deploy key on fleet-chezmoi; fc#975)
 #
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: pr (K2.7 diff) or repo (K2.7 full tree)
+        description: pr (K2.7 diff) or repo (K3 full tree)
         required: true
         type: choice
         options:
@@ -53,7 +53,7 @@ jobs:
         with:
           repository: skyphusion-labs/fleet-chezmoi
           # Pinned merge SHA; bump via fleet-chezmoi system/ci/adversarial-audit-public.yml
-          ref: 846424d7770b961dbb721a90c5b01751c790d45c
+          ref: c1cdb60815d90ecee1da5b99401e79c32d6e2fbf
           path: fleet-chezmoi
           ssh-key: ${{ secrets.FLEET_CHEZMOI_READ_TOKEN }}
 
@@ -61,7 +61,7 @@ jobs:
         working-directory: fleet-chezmoi
         run: |
           set -euo pipefail
-          expected="846424d7770b961dbb721a90c5b01751c790d45c"
+          expected="c1cdb60815d90ecee1da5b99401e79c32d6e2fbf"
           actual="$(git rev-parse HEAD)"
           if [[ "$actual" != "$expected" ]]; then
             echo "::error::fleet-chezmoi pin mismatch: expected ${expected} got ${actual}"
@@ -84,8 +84,12 @@ jobs:
             echo "::error::CLOUDFLARE_ACCOUNT_ID unset (org variable)"
             exit 2
           fi
-          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-            echo "::error::ADVERSARIAL_AUDIT_CF_API_TOKEN required (Workers AI Read; do not reuse deploy token)"
+          if [[ "$mode" == "pr" && -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "::error::ADVERSARIAL_AUDIT_CF_API_TOKEN required for pr mode (Workers AI Read; do not reuse deploy token)"
+            exit 2
+          fi
+          if [[ "$mode" == "repo" && -z "${CF_AIG_TOKEN:-}" ]]; then
+            echo "::error::CF_AIG_TOKEN required for repo mode (Kimi K3 unified billing)"
             exit 2
           fi
           args=(--mode "$mode" --output json --out-file audit.json --md-file audit-report.md --fail-on none)
