@@ -195,7 +195,11 @@ class WanLoraTrainConfig:
     resolution: tuple[int, ...] = (512, 768, 1024)
     batch_size: int = 1             # was hardcoded in build_aitoolkit_config; a knob since #22
     learning_rate: float = 1e-4
-    steps: int = 2000               # 500-4000 is a sane range; identity binds well by ~1000
+    # 500-4000 is a sane range. 1200 since #22: the A/B measured 2000 as past the plateau -- 1200
+    # trained 39% faster (23.5 min vs 38.5) with identity holding against the same conditioning
+    # frame, seed and prompt, and produced byte-identical expert sizes. Conrad ruled the default
+    # move on that evidence. Raise it per-job with train_overrides if a cast needs longer.
+    steps: int = 1200
     save_every: int = 250
     max_step_saves_to_keep: int = 8
     switch_boundary_every: int = 10  # Wan MoE: alternate high/low expert training every N steps
