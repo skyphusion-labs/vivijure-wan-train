@@ -123,10 +123,27 @@ def test_non_object_payload_is_refused():
 
 # --- the job seam --------------------------------------------------------------------------------
 
-def test_request_parses_overrides_and_ignores_junk():
+def test_request_passes_the_payload_through_raw():
+    # Junk must survive parsing INTACT so the one validation point can refuse it. Coercing it to {}
+    # here would run the baseline while the caller believes it ran a variant.
     assert TrainRequest.from_dict({"train_overrides": {"steps": 1200}}).train_overrides == {"steps": 1200}
-    assert TrainRequest.from_dict({"train_overrides": "steps=1200"}).train_overrides == {}
-    assert TrainRequest.from_dict({}).train_overrides == {}
+    assert TrainRequest.from_dict({"train_overrides": "steps=1200"}).train_overrides == "steps=1200"
+    assert TrainRequest.from_dict({}).train_overrides is None
+    assert train_config_overrides(TrainRequest.from_dict({}).train_overrides) == {}
+
+
+def test_job_refuses_a_non_object_payload_instead_of_running_the_baseline(tmp_path, monkeypatch):
+    monkeypatch.setattr(W, "wan_train_runtime_ready", lambda: True)
+    trained = []
+    monkeypatch.setattr(W, "train_slot_wan", lambda *a, **k: trained.append(1))
+    store = _Store()   # get_file asserts if reached
+    with pytest.raises(JobError, match="must be an object"):
+        run_train_job({"action": "train_lora", "project": "neon",
+                       "bundle_key": "bundles/neon.tar.gz",
+                       "train_overrides": "steps=1200"},
+                      store=store, workdir=tmp_path / "work")
+    assert store.fetches == 0
+    assert trained == [], "job trained under the DEFAULTS after junk knobs; that is the baseline wearing the variant label"
 
 
 def test_job_refuses_bad_knobs_before_touching_the_bundle(tmp_path, monkeypatch):

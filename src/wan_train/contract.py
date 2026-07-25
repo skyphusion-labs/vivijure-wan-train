@@ -131,9 +131,11 @@ class TrainRequest:
     bundle_key: str
     pretrained_loras: dict[str, str] = field(default_factory=dict)
     model_family: str = "wan"
-    #: Raw, UNVALIDATED knob payload (#22). Kept raw on purpose: `knobs.train_config_overrides`
-    #: is the single validation point, so a bad payload fails once, loudly, with one message.
-    train_overrides: dict[str, Any] = field(default_factory=dict)
+    #: Raw, UNVALIDATED knob payload (#22). Kept raw on purpose, and typed `Any` on purpose:
+    #: `knobs.train_config_overrides` is the single validation point. Coercing a non-dict to `{}`
+    #: here would eat the payload at parse time and run the BASELINE under the variant's label --
+    #: precisely the failure this seam exists to prevent. Junk reaches the validator and is refused.
+    train_overrides: Any = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "TrainRequest":
@@ -143,7 +145,7 @@ class TrainRequest:
             bundle_key=_str(d.get("bundle_key")),
             pretrained_loras=d.get("pretrained_loras") if isinstance(d.get("pretrained_loras"), dict) else {},
             model_family=_str(d["model_family"], "wan") if "model_family" in d else "wan",
-            train_overrides=d.get("train_overrides") if isinstance(d.get("train_overrides"), dict) else {},
+            train_overrides=d.get("train_overrides"),
         )
 
 
