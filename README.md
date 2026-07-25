@@ -25,7 +25,7 @@ Same payload the control plane already sends:
   "project": "my-film",
   "bundle_key": "bundles/my-film/....tar.gz",
   "model_family": "wan",
-  "train_overrides": { "steps": 1200 }
+  "train_overrides": { "steps": 2000 }
 }
 ```
 
@@ -37,7 +37,7 @@ knobs the run actually trained under.
 | Knob | Type | Range | Default |
 | --- | --- | --- | --- |
 | `batch_size` | int | 1..8 | 1 |
-| `steps` | int | 100..6000 | 2000 |
+| `steps` | int | 100..6000 | 1200 |
 | `resolution` | int list | buckets from 256..1280, no repeats | `[512, 768, 1024]` |
 
 Absent or `{}` runs the shipped defaults unchanged. Anything else is honored EXACTLY or refused:

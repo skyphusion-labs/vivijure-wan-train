@@ -71,10 +71,10 @@ def test_absent_overrides_are_the_shipped_defaults():
     assert train_config_overrides(None) == {}
     assert train_config_overrides({}) == {}
     cfg = W.WanLoraTrainConfig(**train_config_overrides({}))
-    assert (cfg.batch_size, cfg.steps, cfg.resolution) == (1, 2000, (512, 768, 1024))
+    assert (cfg.batch_size, cfg.steps, cfg.resolution) == (1, 1200, (512, 768, 1024))
     train = W.build_aitoolkit_config("n", Path("/d"), Path("/o"), cfg)["config"]["process"][0]
     assert train["train"]["batch_size"] == 1
-    assert train["train"]["steps"] == 2000
+    assert train["train"]["steps"] == 1200
     assert train["datasets"][0]["resolution"] == [512, 768, 1024]
 
 
@@ -187,7 +187,7 @@ def test_default_job_still_reports_the_default_knobs(tmp_path, monkeypatch):
     res = run_train_job({"action": "train_lora", "project": "neon",
                          "bundle_key": "bundles/neon.tar.gz"},
                         store=store, workdir=tmp_path / "work")
-    assert res["train_config"] == {"batch_size": 1, "steps": 2000,
+    assert res["train_config"] == {"batch_size": 1, "steps": 1200,
                                    "resolution": [512, 768, 1024], "rank": 32,
                                    "learning_rate": 1e-4}
 
