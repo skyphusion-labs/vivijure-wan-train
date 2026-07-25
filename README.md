@@ -24,11 +24,26 @@ Same payload the control plane already sends:
   "action": "train_lora",
   "project": "my-film",
   "bundle_key": "bundles/my-film/....tar.gz",
-  "model_family": "wan"
+  "model_family": "wan",
+  "train_overrides": { "steps": 1200 }
 }
 ```
 
-Returns dual expert keys under `lora[slot].lora_id_high` / `lora_id_low`.
+Returns dual expert keys under `lora[slot].lora_id_high` / `lora_id_low`, plus `train_config`: the
+knobs the run actually trained under.
+
+### `train_overrides` (optional, allow-listed)
+
+| Knob | Type | Range | Default |
+| --- | --- | --- | --- |
+| `batch_size` | int | 1..8 | 1 |
+| `steps` | int | 100..6000 | 2000 |
+| `resolution` | int list | buckets from 256..1280, no repeats | `[512, 768, 1024]` |
+
+Absent or `{}` runs the shipped defaults unchanged. Anything else is honored EXACTLY or refused:
+an unknown key, a wrong type, or an out-of-range value fails the job loudly before the bundle is
+downloaded. A knob is never partially applied and never silently dropped, because a dropped knob
+turns an A/B run into a baseline run wearing the variant label.
 
 ## Image
 

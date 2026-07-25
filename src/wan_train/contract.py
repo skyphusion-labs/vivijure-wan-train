@@ -131,6 +131,9 @@ class TrainRequest:
     bundle_key: str
     pretrained_loras: dict[str, str] = field(default_factory=dict)
     model_family: str = "wan"
+    #: Raw, UNVALIDATED knob payload (#22). Kept raw on purpose: `knobs.train_config_overrides`
+    #: is the single validation point, so a bad payload fails once, loudly, with one message.
+    train_overrides: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "TrainRequest":
@@ -140,6 +143,7 @@ class TrainRequest:
             bundle_key=_str(d.get("bundle_key")),
             pretrained_loras=d.get("pretrained_loras") if isinstance(d.get("pretrained_loras"), dict) else {},
             model_family=_str(d["model_family"], "wan") if "model_family" in d else "wan",
+            train_overrides=d.get("train_overrides") if isinstance(d.get("train_overrides"), dict) else {},
         )
 
 
@@ -147,7 +151,11 @@ class TrainRequest:
 class TrainResult:
     project: str
     lora: dict[str, Any] = field(default_factory=dict)
+    #: The knobs the run actually trained under (#22). Additive: consumers that do not know the
+    #: key ignore it, and an A/B never has to infer the variant from wall-clock.
+    train_config: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {"project": self.project, "lora": self.lora, "output_key": None, "seconds": None,
-                "has_audio": False, "audio_missing": False, "keyframes": [], "state_key": None}
+                "has_audio": False, "audio_missing": False, "keyframes": [], "state_key": None,
+                "train_config": self.train_config}

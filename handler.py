@@ -7,7 +7,10 @@ Job input (same wire shape the control plane already sends to train_lora):
     "bundle_key": "bundles/<project>/...tar.gz",
     "model_family": "wan",           # optional; defaults to wan on this endpoint
     "pretrained_loras": {},          # optional slot -> existing lora key passthrough
-    "render_overrides": {}           # ignored here (train uses WanLoraTrainConfig defaults)
+    "render_overrides": {},          # ignored here (this endpoint only trains)
+    "train_overrides": {}            # optional, allow-listed: batch_size / steps / resolution (#22).
+                                     # Absent = the shipped WanLoraTrainConfig defaults. An unknown
+                                     # key or an out-of-range value is REFUSED, never dropped.
   }
 
 Returns: { project, lora: { slot: { lora_id_high, lora_id_low, family: "wan" } }, ... }
