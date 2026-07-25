@@ -6,6 +6,7 @@ from pathlib import Path
 from . import wan_lora_train as W
 from .contract import Bundle, TrainRequest, TrainResult
 from . import keys
+from .knobs import KnobError, effective_knobs, train_config_overrides
 from .progress import ProgressEmitter
 from .redact import redact_error_message
 
@@ -64,10 +65,17 @@ def run_train_job(
         raise JobError(
             "Wan train runtime not ready (missing ai-toolkit env or baked Wan base weights)")
 
+    # Knobs resolve BEFORE any download or GPU work: a refused payload must cost nothing.
+    try:
+        cfg = W.WanLoraTrainConfig(**train_config_overrides(req.train_overrides))
+    except KnobError as e:
+        raise JobError(str(e)) from None
+    knobs = effective_knobs(cfg)
+
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     progress = ProgressEmitter(store, req.project, job_id, on_progress=on_progress)
-    progress.emit("started", action=req.action, project=req.project)
+    progress.emit("started", action=req.action, project=req.project, train_config=knobs)
 
     try:
         if not req.bundle_key:
@@ -90,7 +98,7 @@ def run_train_job(
         if ref_errs:
             raise JobError("invalid train job: " + "; ".join(ref_errs))
 
-        result = TrainResult(project=req.project)
+        result = TrainResult(project=req.project, train_config=knobs)
         for slot in to_train:
             char = bundle.cast.characters[slot]
             out_dir = workdir / "loras" / slot
@@ -99,11 +107,12 @@ def run_train_job(
                 if "/" in line and ("it/s" in line or "loss" in line):
                     progress.emit("wan_train_progress", slot=slot, line=line[:200])
 
-            trained = W.train_slot_wan(char, out_dir, progress_cb=line_cb)
+            trained = W.train_slot_wan(char, out_dir, config=cfg, progress_cb=line_cb)
             key_high = store.put_file(trained.high_path, keys.wan_lora_key(req.project, slot, "high"))
             key_low = store.put_file(trained.low_path, keys.wan_lora_key(req.project, slot, "low"))
             result.lora[slot] = {"lora_id_high": key_high, "lora_id_low": key_low, "family": "wan"}
-            progress.emit("train_done", slot=slot, family="wan", high=key_high, low=key_low)
+            progress.emit("train_done", slot=slot, family="wan", high=key_high, low=key_low,
+                          train_config=knobs)
 
         for slot, lora_id in req.pretrained_loras.items():
             try:

@@ -193,6 +193,7 @@ class WanLoraTrainConfig:
     smaller card (CPU expert-swapping); the default False is the proven, GPU-bound path."""
     rank: int = 32
     resolution: tuple[int, ...] = (512, 768, 1024)
+    batch_size: int = 1             # was hardcoded in build_aitoolkit_config; a knob since #22
     learning_rate: float = 1e-4
     steps: int = 2000               # 500-4000 is a sane range; identity binds well by ~1000
     save_every: int = 250
@@ -308,7 +309,7 @@ def build_aitoolkit_config(
                         }
                     ],
                     "train": {
-                        "batch_size": 1,
+                        "batch_size": cfg.batch_size,
                         "steps": cfg.steps,
                         "gradient_accumulation": 1,
                         "train_unet": True,
