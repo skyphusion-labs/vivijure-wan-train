@@ -5,7 +5,7 @@
 #
 # Two isolated conda envs (cf#29 D1): "vivijure" (job handler + R2) and "aitoolkit" (ai-toolkit run.py).
 
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04 AS deps
 
 ARG AITOOLKIT_REF=6e158dd1f1552b73b7aca6d7ddaa46a783538052
 ARG VJ_PYTHON_VERSION=3.11
@@ -53,6 +53,22 @@ RUN conda run --no-capture-output -n aitoolkit python -m pip install \
 
 ENV VIVIJURE_AITOOLKIT_DIR=/opt/ai-toolkit \
     VIVIJURE_AITOOLKIT_PYTHON=/opt/conda/envs/aitoolkit/bin/python
+
+# --- STAGE SPLIT (#29) ---------------------------------------------------------
+# Everything ABOVE is the dependency surface: apt, both conda envs, the cu128 torch trio,
+# deploy/requirements.txt, the ai-toolkit checkout and its constraints/overrides. Everything
+# BELOW is the ~55GB Wan weight bake plus the worker code.
+#
+# The dispatch-gated GPU compat smoke (.github/workflows/compat-smoke.yml) builds this
+# stage by name (docker build --target deps), so it exercises THESE layers, the real
+# production ones, without staging 55GB of weights it does not need to answer a
+# dependency question. A production build names no target and therefore still builds
+# the full stage, unchanged.
+#
+# Keep every dependency install ABOVE this line; tests/test_compat_smoke_contract.py fails CI
+# if a pip/conda/apt install drifts below it (a smoke that misses a dep layer is a smoke
+# that lies).
+FROM deps AS full
 
 COPY deploy/train-bins/bin-00/ /opt/models/hf-cache/
 COPY deploy/train-bins/bin-01/ /opt/models/hf-cache/

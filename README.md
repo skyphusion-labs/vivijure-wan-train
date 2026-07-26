@@ -51,6 +51,13 @@ turns an A/B run into a baseline run wearing the variant label.
 
 Built by `.github/workflows/build-image.yml` (workflow_dispatch on Plane C GPU runner).
 
+### Dependency compat smoke
+
+`.github/workflows/compat-smoke.yml` (workflow_dispatch, Plane C) builds `deploy/Dockerfile
+--target deps` at any ref and runs a real LoRA train on the local GPU, so a dependency bump gets
+evidence CI structurally cannot produce. It pushes nothing. Scope and limits (it is NOT an A14B
+run, and NOT the release gate): [docs/gpu-compat-smoke.md](docs/gpu-compat-smoke.md).
+
 ## RunPod Hub
 
 Listing config lives in [`.runpod/`](.runpod/README.md): `hub.json` (metadata, GPU pools, R2 env

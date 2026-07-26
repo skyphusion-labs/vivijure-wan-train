@@ -1,0 +1,148 @@
+name: GPU compat smoke (dispatch)
+
+# workflow_dispatch ONLY, on Plane C ([self-hosted, gpu], org group vivijure-gpu-builds).
+#
+# WHY (#29): CI lints and unit-tests on a CPU runner and never touches the training image, so
+# a dependency bump can be green in CI and still be unbuildable or un-importable on a GPU. This
+# workflow builds the PRODUCTION Dockerfile dependency stage at a candidate ref and runs a real
+# LoRA train inside it on the local card. It pushes NOTHING: no registry, no tag.
+#
+# It is a dependency/ABI gate, not a release gate. Plane C carries a 20GB card; the Wan A14B
+# recipe is 80GB. The final gate for any bump stays bake + live train on the prod RunPod
+# endpoint, unchanged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to smoke: a 40-char commit sha (PR head, preferred) or a branch name.'
+        required: true
+        type: string
+      steps:
+        description: 'LoRA train steps for the smoke (10-50).'
+        required: false
+        default: '20'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wan-train-compat-smoke
+  cancel-in-progress: false
+
+jobs:
+  compat-smoke:
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 120
+    env:
+      REF: ${{ github.event.inputs.ref }}
+      STEPS: ${{ github.event.inputs.steps }}
+      IMAGE: vivijure-wan-train-compat:${{ github.run_id }}
+      OUT_DIR: /tmp/compat-smoke-${{ github.run_id }}
+    steps:
+      - name: Validate inputs
+        run: |
+          set -eu
+          case "${STEPS}" in ''|*[!0-9]*) echo "::error::steps must be digits"; exit 1;; esac
+          [ "${STEPS}" -ge 1 ] && [ "${STEPS}" -le 200 ] || {
+            echo "::error::steps must be 1..200 for a smoke"; exit 1; }
+          case "${REF}" in
+            *[!A-Za-z0-9./_-]*) echo "::error::ref has characters a git ref cannot have"; exit 1;;
+          esac
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 1
+
+      - name: Assert the ref carries the smoke harness
+        run: |
+          set -eu
+          # A branch cut before the harness landed cannot be smoked: docker would fail on an
+          # unknown --target with a confusing error. Say the real thing instead. Rebasing is
+          # required to merge anyway (the ruleset enforces up-to-date with main), so this asks
+          # for nothing extra.
+          grep -q "^FROM deps AS full" deploy/Dockerfile || {
+            echo "::error::this ref has no deps stage in deploy/Dockerfile: rebase the branch onto main and dispatch the new head sha"
+            exit 1; }
+          [ -f deploy/compat_smoke.py ] || {
+            echo "::error::this ref has no deploy/compat_smoke.py: rebase the branch onto main and dispatch the new head sha"
+            exit 1; }
+
+      - name: Report the head under test
+        id: head
+        run: |
+          set -eu
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "head ${SHA}"
+          git log -1 --pretty=format:'%H %an %s' | cat
+          echo
+          echo "--- dependency pins under test ---"
+          cat deploy/requirements.txt deploy/aitoolkit-constraints.txt
+
+      - name: GPU present
+        run: nvidia-smi
+
+      - name: Build the production dependency stage
+        run: |
+          set -eu
+          docker build --target deps -f deploy/Dockerfile -t "${IMAGE}" .
+
+      - name: 'Suite: huggingface_hub API surface (vivijure env)'
+        run: |
+          set -eu
+          mkdir -p "${OUT_DIR}"
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/smoke:ro" -v "${OUT_DIR}:/out" \
+            "${IMAGE}" conda run --no-capture-output -n vivijure \
+            python /smoke/deploy/compat_smoke.py --suite hfhub --out /out
+
+      - name: 'Suite: torch trio ABI + ai-toolkit + real LoRA train (aitoolkit env, GPU)'
+        run: |
+          set -eu
+          docker run --rm --gpus all \
+            -v "${GITHUB_WORKSPACE}:/smoke:ro" -v "${OUT_DIR}:/out" \
+            "${IMAGE}" conda run --no-capture-output -n aitoolkit \
+            python /smoke/deploy/compat_smoke.py --suite gputrain --steps "${STEPS}" --out /out
+
+      - name: Assert the LoRA artifact exists on the host
+        run: |
+          set -eu
+          ART="${OUT_DIR}/compat_smoke_lora.safetensors"
+          [ -s "${ART}" ] || { echo "::error::no LoRA artifact at ${ART}"; exit 1; }
+          echo "artifact $(stat -c '%s bytes' "${ART}")"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Wan train GPU compat smoke"
+            echo
+            echo "- head: \`${{ steps.head.outputs.sha }}\` (input ref \`${REF}\`)"
+            echo "- train steps: \`${STEPS}\`"
+            echo "- image: dependency stage only, built locally, pushed nowhere"
+            echo
+            echo "Scope: dependency resolution + install, torch/torchvision/torchaudio ABI on the"
+            echo "card, ai-toolkit trainer imports, huggingface_hub API surface, and one real LoRA"
+            echo "fine-tune that must emit a reloadable .safetensors adapter. NOT a Wan A14B train:"
+            echo "the final gate stays bake + live train on the prod RunPod endpoint."
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in "${OUT_DIR}"/compat-smoke-*.json; do
+            [ -f "$f" ] || continue
+            echo "<details><summary>$(basename "$f")</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "$f" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Clean up (Plane C disk floor, fleet-chezmoi#1091)
+        if: always()
+        run: |
+          set +e
+          docker run --rm -v "${OUT_DIR}:/out" "${IMAGE}" find /out -mindepth 1 -delete
+          docker image rm -f "${IMAGE}"
+          rmdir "${OUT_DIR}" 2>/dev/null
+          exit 0
