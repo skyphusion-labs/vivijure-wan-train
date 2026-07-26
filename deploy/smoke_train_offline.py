@@ -8,14 +8,24 @@ runtime. This smoke runs in the train image AFTER bake_aitoolkit_offline_paths.p
   2. ai-toolkit source no longer carries the UMT5/VAE hub IDs
   3. Hub-id from_pretrained under HF_HUB_OFFLINE raises OfflineModeIsEnabled (the D2c failure
      class) -- proves hub IDs are still toxic offline even when the bake is complete
-  4. Local-path config load with a network-forbid hook succeeds -- proves baked dirs are enough
+  4. The network-forbid block ACTUALLY BLOCKS (positive control, see below)
+  5. Local-path config load with the network-forbid hook succeeds -- proves baked dirs are enough
 
 Does NOT load the 14B DiT into RAM (build runners cannot). Config / model_index reads only.
+
+WHY CHECK 4 EXISTS (wan-train #29): check 5 is a negative test, and a negative test whose
+blocker has quietly stopped blocking passes for the wrong reason forever. huggingface_hub 1.x
+moved its HTTP layer from a requests Session to a shared httpx client, so the old
+`get_session` attribute patch stopped intercepting anything: check 5 was passing vacuously.
+The block now installs through the supported seam for whichever hub generation is present,
+and check 4 proves it bites before check 5 is allowed to mean anything.
 """
 from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 STABLE_ROOT = Path(os.environ.get("VIVIJURE_AITOOLKIT_WEIGHTS", "/opt/models/aitoolkit"))
@@ -29,15 +39,36 @@ PATCH_FILES = (
     "toolkit/models/wan21/wan21.py",
     "extensions_built_in/diffusion_models/wan22/wan22_14b_model.py",
 )
+# Any repo id works for the control: with the block installed no socket is ever opened, so the
+# probe is hermetic and does not care whether the build host has network.
+_PROBE_REPO = "hf-internal-testing/tiny-random-gpt2"
+_SELF_TEST_FLAG = "--self-test-forbid"
 
 
 class _NetworkForbidden(RuntimeError):
     pass
 
 
-def _forbid_hf_http():
-    """Raise if huggingface_hub attempts any HTTP (proves local paths need zero network)."""
+def _forbid_hf_http() -> str:
+    """Make ANY huggingface_hub HTTP raise _NetworkForbidden. Returns the seam used.
+
+    hub 1.x: install a client factory whose httpx transport refuses every request. This is the
+    supported customization seam (`set_client_factory`), and it resets the shared client, so it
+    also catches modules that imported `get_session` by name.
+    hub 0.x: fall back to swapping the requests-Session factory.
+    """
     import huggingface_hub.utils._http as http_mod
+
+    if hasattr(http_mod, "set_client_factory"):
+        import httpx
+
+        class _BlockingTransport(httpx.BaseTransport):
+            def handle_request(self, request):  # noqa: D102 -- httpx transport protocol
+                raise _NetworkForbidden(
+                    f"HF HTTP forbidden in offline smoke: {request.method} {request.url}")
+
+        http_mod.set_client_factory(lambda: httpx.Client(transport=_BlockingTransport()))
+        return "httpx client factory"
 
     class _BlockedSession:
         def request(self, *args, **kwargs):
@@ -53,6 +84,46 @@ def _forbid_hf_http():
             return self.request("POST", *args, **kwargs)
 
     http_mod.get_session = lambda *a, **k: _BlockedSession()  # type: ignore[assignment]
+    return "requests session patch"
+
+
+def _self_test_forbid() -> int:
+    """Child-process control: with the block installed, a real hub call MUST be refused.
+
+    Runs in its own process with HF_HUB_OFFLINE cleared, because the offline guard short-circuits
+    before the HTTP layer and would make this control pass without the block doing anything.
+    """
+    from huggingface_hub import HfApi
+
+    seam = _forbid_hf_http()
+    try:
+        HfApi().model_info(_PROBE_REPO)
+    except Exception as e:  # noqa: BLE001 -- any refusal is inspected, not assumed
+        chain, cur = [], e
+        while cur is not None and len(chain) < 12:
+            chain.append(type(cur).__name__)
+            cur = cur.__cause__ or cur.__context__
+        if "_NetworkForbidden" in chain:
+            print(f"forbid-block control OK via {seam} ({chain[0]})")
+            return 0
+        print(f"forbid-block control FAILED: hub HTTP raised {chain} instead of _NetworkForbidden")
+        return 1
+    print("forbid-block control FAILED: hub call SUCCEEDED with the block installed")
+    return 1
+
+
+def check_forbid_block_is_live() -> None:
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE")}
+    proc = subprocess.run([sys.executable, str(Path(__file__).resolve()), _SELF_TEST_FLAG],
+                          env=env, capture_output=True, text=True, timeout=300)
+    sys.stdout.write(proc.stdout)
+    sys.stdout.write(proc.stderr)
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "the HF network-forbid block no longer blocks; the offline proof below would pass "
+            "vacuously. Fix _forbid_hf_http for this huggingface_hub version before trusting "
+            "this image (wan-train #29)")
 
 
 def check_marker() -> dict:
@@ -106,7 +177,7 @@ def check_hub_id_still_toxic_offline() -> None:
 
 def check_local_path_config_no_network(data: dict) -> None:
     """Local snapshot must load config with HF HTTP fully forbidden."""
-    _forbid_hf_http()
+    print("network-forbid seam:", _forbid_hf_http())
     from diffusers import WanTransformer3DModel
 
     base = data["stable"]["wan-base"]
@@ -134,9 +205,12 @@ def check_local_path_config_no_network(data: dict) -> None:
 
 
 def main() -> int:
+    if _SELF_TEST_FLAG in sys.argv[1:]:
+        return _self_test_forbid()
     data = check_marker()
     check_aitoolkit_patched()
     check_hub_id_still_toxic_offline()
+    check_forbid_block_is_live()
     check_local_path_config_no_network(data)
     wan_env = os.environ.get("VIVIJURE_WAN_BASE_PATH", "")
     expected = data["stable"]["wan-base"]
