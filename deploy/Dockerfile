@@ -65,7 +65,7 @@ ENV VIVIJURE_AITOOLKIT_DIR=/opt/ai-toolkit \
 # dependency question. A production build names no target and therefore still builds
 # the full stage, unchanged.
 #
-# Keep every dependency install ABOVE this line; tests/test_dockerfile_stages.py fails CI
+# Keep every dependency install ABOVE this line; tests/test_compat_smoke_contract.py fails CI
 # if a pip/conda/apt install drifts below it (a smoke that misses a dep layer is a smoke
 # that lies).
 FROM deps AS full

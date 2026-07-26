@@ -51,6 +51,21 @@ def test_dockerfile_declares_the_two_stages():
     assert froms[1] == f"FROM {DEPS_STAGE} AS {FULL_STAGE}", froms[1]
 
 
+def test_stage_split_comment_names_a_test_that_exists():
+    """The split comment points the next editor at the enforcing test; a wrong filename defeats it.
+
+    It shipped wrong once (it named tests/test_dockerfile_stages.py, which never existed), so the
+    pointer is now checked rather than trusted.
+    """
+    text = DOCKERFILE.read_text(encoding="utf-8")
+    referenced = set(re.findall(r"tests/test_[A-Za-z0-9_]+\.py", text))
+    assert referenced, "the stage split comment must name the test that enforces it"
+    missing = sorted(rel for rel in referenced if not (REPO / rel).is_file())
+    assert not missing, f"deploy/Dockerfile points at test file(s) that do not exist: {missing}"
+    assert f"tests/{Path(__file__).name}" in referenced, (
+        "the split comment should name this file, which is what actually guards the split")
+
+
 def test_no_dependency_install_below_the_split():
     lines = _dockerfile_lines()
     split = _split_index(lines)
