@@ -56,6 +56,20 @@ jobs:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 1
 
+      - name: Assert the ref carries the smoke harness
+        run: |
+          set -eu
+          # A branch cut before the harness landed cannot be smoked: docker would fail on an
+          # unknown --target with a confusing error. Say the real thing instead. Rebasing is
+          # required to merge anyway (the ruleset enforces up-to-date with main), so this asks
+          # for nothing extra.
+          grep -q "^FROM deps AS full" deploy/Dockerfile || {
+            echo "::error::this ref has no deps stage in deploy/Dockerfile: rebase the branch onto main and dispatch the new head sha"
+            exit 1; }
+          [ -f deploy/compat_smoke.py ] || {
+            echo "::error::this ref has no deploy/compat_smoke.py: rebase the branch onto main and dispatch the new head sha"
+            exit 1; }
+
       - name: Report the head under test
         id: head
         run: |

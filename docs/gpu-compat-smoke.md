@@ -58,6 +58,11 @@ gh workflow run compat-smoke.yml --repo skyphusion-labs/vivijure-wan-train \
 Dispatch a baseline run against `main` first when the harness itself has changed. A suite that
 passes on a bump but was never seen passing on a known-good ref proves nothing about the bump.
 
+The ref must carry the harness, so a branch cut before this landed (an older dependabot PR, say)
+has to be rebased onto `main` before it can be smoked. That is not an extra hoop: the branch
+ruleset requires up-to-date-with-main to merge anyway. The workflow checks for the harness right
+after checkout and says exactly that rather than letting `docker build` fail on an unknown target.
+
 ## The stage split contract
 
 `deploy/Dockerfile` is two stages: `deps` (apt, both conda envs, the cu128 torch trio,
