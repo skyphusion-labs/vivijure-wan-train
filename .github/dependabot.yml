@@ -12,6 +12,13 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # Torch trio (torch/torchvision/torchaudio) migration off the 2.9 cu128 line is a
+  # coordinated, THREE-site pin change (deploy/aitoolkit-constraints.txt, ARG
+  # VJ_TORCH_SPEC, and the explicit aitoolkit-env install in deploy/Dockerfile) that
+  # Dependabot cannot do safely: it resolves against PyPI, not the pinned cu128 index,
+  # and cannot see the ai-toolkit ABI/metadata coupling (torchao/torchcodec/setuptools
+  # at AITOOLKIT_REF) that broke PR #17 at build time. Not forbidden, just not
+  # Dependabot-driven; see #32 for the manual migration procedure when one is wanted.
   - package-ecosystem: pip
     directory: "/deploy"
     schedule:
@@ -19,6 +26,10 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: deps
+    ignore:
+      - dependency-name: "torch"
+      - dependency-name: "torchvision"
+      - dependency-name: "torchaudio"
     groups:
       pip-minor-patch:
         patterns: ["*"]
