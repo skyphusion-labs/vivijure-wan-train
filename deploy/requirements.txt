@@ -3,4 +3,4 @@
 runpod>=1.11.0
 boto3>=1.43.56
 PyYAML>=6.0.3
-huggingface_hub>=1.24.0
+huggingface_hub>=1.25.1
