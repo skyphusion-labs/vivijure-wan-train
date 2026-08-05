@@ -1,6 +1,6 @@
 name: GPU compat smoke (dispatch)
 
-# workflow_dispatch ONLY, on Plane C ([self-hosted, gpu], org group vivijure-gpu-builds).
+# workflow_dispatch ONLY, on Plane C ([self-hosted, gpu-device], org group vivijure-gpu-builds).
 #
 # WHY (#29): CI lints and unit-tests on a CPU runner and never touches the training image, so
 # a dependency bump can be green in CI and still be unbuildable or un-importable on a GPU. This
@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   compat-smoke:
-    runs-on: [self-hosted, gpu]
+    runs-on: [self-hosted, gpu-device]
     timeout-minutes: 120
     env:
       REF: ${{ github.event.inputs.ref }}
