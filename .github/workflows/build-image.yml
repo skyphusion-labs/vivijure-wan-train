@@ -1,7 +1,7 @@
 name: Build Wan train image to GHCR
 
 # workflow_dispatch ONLY. Publishes ghcr.io/skyphusion-labs/vivijure-wan-train:train-<version>
-# (successor to vivijure-backend:train-*). Runs on Plane C [self-hosted, gpu].
+# (successor to vivijure-backend:train-*). Runs on Plane C [self-hosted, bake-capable].
 
 on:
   workflow_dispatch:
@@ -32,7 +32,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: [self-hosted, gpu]
+    runs-on: [self-hosted, bake-capable]
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
