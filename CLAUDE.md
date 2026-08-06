@@ -78,3 +78,9 @@ before prod pin.** Never trust a green bake alone.
 Crew: `sudo -u <member> bash -lc '...'`; commits under `skyphusion-<member>`. Conrad on laptop only
 as `Conrad Rockenhaus <conrad@skyphusion.org>`. Conventional Commits. GPU spend is gated; confirm
 before non-trivial train runs.
+
+## Release / deploy
+
+**Tag-gated production deploy.** Merges to `main` run CI only; they do not ship production.
+Cut an annotated SemVer tag on `main` to release (`git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`).
+Deploy workflows assert the tag commit is an ancestor of `origin/main`.
