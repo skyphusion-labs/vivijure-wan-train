@@ -49,14 +49,15 @@ turns an A/B run into a baseline run wearing the variant label.
 
 `ghcr.io/skyphusion-labs/vivijure-wan-train:train-<version>`
 
-Built by `.github/workflows/build-image.yml` (workflow_dispatch on Plane C GPU runner).
+Built by `.github/workflows/build-image.yml` (Plane C **disk** lane: `bake-capable`; no card
+required for the bake).
 
-### Dependency compat smoke
+### Train readiness gate (RunPod only)
 
-`.github/workflows/compat-smoke.yml` (workflow_dispatch, Plane C) builds `deploy/Dockerfile
---target deps` at any ref and runs a real LoRA train on the local GPU, so a dependency bump gets
-evidence CI structurally cannot produce. It pushes nothing. Scope and limits (it is NOT an A14B
-run, and NOT the release gate): [docs/gpu-compat-smoke.md](docs/gpu-compat-smoke.md).
+Wan 2.2 A14B is not validated on workstation RTX 4000-class cards. After an image bake, the
+gate is a **live train on the prod RunPod endpoint** (Hub under `.runpod/`). The former
+Plane C card `compat-smoke` workflow is **retired** (see
+[docs/gpu-compat-smoke.md](docs/gpu-compat-smoke.md)).
 
 ## RunPod Hub
 

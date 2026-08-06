@@ -37,7 +37,7 @@ no longer ships `:train-*` after decouple.
 - `README.md` -- job contract, image, Hub, commands
 - `CHANGELOG.md` -- repo line vs image line (read the header)
 - `docs/migration-from-backend-train-image.md`
-- `docs/gpu-compat-smoke.md` -- Plane C compat smoke (not the release gate)
+- `docs/gpu-compat-smoke.md` -- **RETIRED** local-card smoke; gate is RunPod A14B only
 - `.runpod/` -- Hub listing; pin check fails CI if digests go stale
 
 ## Commands
@@ -45,8 +45,8 @@ no longer ships `:train-*` after decouple.
 ```bash
 PYTHONPATH=src pytest          # CPU unit suite
 python -m py_compile handler.py  # when present at root / entry
-# Image bake: .github/workflows/build-image.yml (workflow_dispatch, Plane C GPU)
-# Compat smoke: .github/workflows/compat-smoke.yml (dispatch; pushes nothing)
+# Image bake: .github/workflows/build-image.yml (Plane C bake-capable disk lane)
+# Train gate: live RunPod endpoint (not local RTX 4000 / not Plane C card smoke)
 ```
 
 Selftest: `{"selftest": true}` on a SecurePod / pinned endpoint (spend-gated). **SecurePod smoke

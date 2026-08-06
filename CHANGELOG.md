@@ -10,7 +10,11 @@ Newest first.
 
 ## Unreleased
 
-- Nothing yet.
+- **Retire Plane C card `compat-smoke` workflow (2026-08-06).** Wan 2.2 A14B does not run
+  realistically on workstation RTX 4000-class cards; the local GPU smoke was ceremony over
+  non-prod conditions. Image bake stays on Plane C (`bake-capable` disk lane). Train readiness
+  gate is **live RunPod** only. Optional `deploy/compat_smoke.py` / fixtures remain for
+  hand-debug, not CI.
 
 ## v0.2.0 -- 2026-07-25
 

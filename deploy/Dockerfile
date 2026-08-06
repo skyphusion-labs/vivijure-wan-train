@@ -54,20 +54,17 @@ RUN conda run --no-capture-output -n aitoolkit python -m pip install \
 ENV VIVIJURE_AITOOLKIT_DIR=/opt/ai-toolkit \
     VIVIJURE_AITOOLKIT_PYTHON=/opt/conda/envs/aitoolkit/bin/python
 
-# --- STAGE SPLIT (#29) ---------------------------------------------------------
+# --- STAGE SPLIT (#29, retained after compat-smoke retirement 2026-08-06) ------
 # Everything ABOVE is the dependency surface: apt, both conda envs, the cu128 torch trio,
 # deploy/requirements.txt, the ai-toolkit checkout and its constraints/overrides. Everything
 # BELOW is the ~55GB Wan weight bake plus the worker code.
 #
-# The dispatch-gated GPU compat smoke (.github/workflows/compat-smoke.yml) builds this
-# stage by name (docker build --target deps), so it exercises THESE layers, the real
-# production ones, without staging 55GB of weights it does not need to answer a
-# dependency question. A production build names no target and therefore still builds
-# the full stage, unchanged.
+# A production build names no target and builds `full`. The `deps` stage remains a clean
+# boundary so dependency layers can be reasoned about without the weight bake. The former
+# Plane C card compat-smoke workflow is RETIRED; train readiness is bake + RunPod A14B.
 #
 # Keep every dependency install ABOVE this line; tests/test_compat_smoke_contract.py fails CI
-# if a pip/conda/apt install drifts below it (a smoke that misses a dep layer is a smoke
-# that lies).
+# if a pip/conda/apt install drifts below it.
 FROM deps AS full
 
 COPY deploy/train-bins/bin-00/ /opt/models/hf-cache/
