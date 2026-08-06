@@ -1,9 +1,8 @@
-"""CPU-side guards for the dispatch-gated GPU compat smoke (#29).
+"""CPU-side guards for the Dockerfile deps/full stage split + optional local smoke harness.
 
-The smoke itself needs a GPU, so CI cannot run it. What CI CAN do is stop the two ways it
-silently rots: the Dockerfile stage it targets drifting (a dependency install sliding below
-the split means the smoke stops exercising it), and the fixture dataset going missing or
-going fat.
+The Plane C card compat-smoke *workflow* is RETIRED (2026-08-06); train gate is RunPod A14B.
+CI still enforces the Dockerfile stage split (deps vs weight bake) and that optional local
+harness files stay importable/tiny if present.
 """
 from __future__ import annotations
 
@@ -15,7 +14,6 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 DOCKERFILE = REPO / "deploy" / "Dockerfile"
-WORKFLOW = REPO / ".github" / "workflows" / "compat-smoke.yml"
 FIXTURES = REPO / "tests" / "fixtures" / "compat-smoke"
 
 DEPS_STAGE = "deps"
@@ -75,8 +73,8 @@ def test_no_dependency_install_below_the_split():
         if any(p.search(line) for p in DEP_INSTALL_PATTERNS)
     ]
     assert not offenders, (
-        "dependency install(s) below the stage split; the compat smoke builds --target "
-        f"{DEPS_STAGE} and would not exercise these:\n" + "\n".join(offenders))
+        "dependency install(s) below the stage split; keep installs in "
+        f"{DEPS_STAGE} so the weight bake stage stays pure:\n" + "\n".join(offenders))
 
 
 def test_weight_bake_stays_above_nothing_and_below_the_split():
@@ -85,20 +83,12 @@ def test_weight_bake_stays_above_nothing_and_below_the_split():
     weight_copies = [i for i, line in enumerate(lines) if "deploy/train-bins/" in line]
     assert weight_copies, "no train-bins COPY found; did the weight bake move?"
     assert min(weight_copies) > split, (
-        "the 55GB weight bake must stay in the full stage, otherwise the compat smoke has to "
-        "stage weights it does not need")
-
-
-def test_workflow_targets_the_deps_stage():
-    text = WORKFLOW.read_text(encoding="utf-8")
-    assert f"--target {DEPS_STAGE}" in text, (
-        "compat-smoke.yml must build the deps stage by name; renaming the stage without "
-        "updating the workflow would silently build the full image")
+        "the 55GB weight bake must stay in the full stage below the deps split")
 
 
 def test_fixture_dataset_is_present_paired_and_tiny():
     images = sorted(FIXTURES.glob("*.png"))
-    assert len(images) >= 2, f"compat smoke needs a fixture batch, found {images}"
+    assert len(images) >= 2, f"optional local smoke fixtures need a batch, found {images}"
     for img in images:
         caption = img.with_suffix(".txt")
         assert caption.is_file(), f"{img.name} has no caption"

@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
-"""GPU dependency/ABI compat smoke for the Wan train image (vivijure-wan-train #29).
+"""Optional local GPU dependency/ABI probe for the Wan train image (vivijure-wan-train #29).
 
-WHY THIS EXISTS: CI lints and unit-tests on a CPU runner, so a dependency bump (the held
-torch trio #17, the huggingface-hub floor #19) can be green in CI and still be unbuildable
-or un-importable in the training image. This script is the in-image half of the
-dispatch-gated smoke (.github/workflows/compat-smoke.yml): it runs INSIDE the image built
-from `deploy/Dockerfile --target deps` at the candidate ref, on a real GPU.
+NOT CI. NOT a merge gate. The Plane C `compat-smoke.yml` workflow was RETIRED 2026-08-06:
+workstation RTX 4000-class cards are not the realistic operating condition for Wan 2.2
+A14B. Authoritative readiness is bake (`build-image.yml`) + live train on **RunPod**.
 
-WHAT IT HONESTLY PROVES / DOES NOT PROVE:
-  proves      -- the pinned dependency set resolves and installs (the build got this far),
-                 the torch/torchvision/torchaudio trio is ABI-consistent (their COMPILED
-                 extensions run on the card, which is where a mismatched pair dies), the
-                 ai-toolkit trainer stack imports, huggingface_hub still exposes the exact
-                 API surface this repo calls, and a real LoRA fine-tune runs end to end on
-                 the GPU and writes a loadable .safetensors adapter.
-  does NOT    -- prove a Wan 2.2 A14B run. Plane C carries a 20GB card; A14B dual-expert
-                 bf16 is an 80GB recipe. The final gate for a bump stays what it always
-                 was: bake the image and run a live train on the prod RunPod endpoint.
+This module remains for hand-debug inside `docker build --target deps` + `docker run
+--gpus all` if an operator chooses to poke ABI/import questions locally. Do not treat a
+green local tiny-UNet LoRA as evidence for A14B.
 
 Suites (one per conda env, because the two envs carry DIFFERENT dependency sets):
-  --suite gputrain  (aitoolkit env)  torch trio ABI + ai-toolkit imports + real LoRA train
+  --suite gputrain  (aitoolkit env)  torch trio ABI + ai-toolkit imports + tiny LoRA train
   --suite hfhub     (vivijure env)   huggingface_hub API surface this repo actually calls
 """
 from __future__ import annotations

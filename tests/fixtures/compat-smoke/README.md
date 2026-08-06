@@ -1,12 +1,10 @@
-# compat-smoke fixture dataset
+# compat-smoke fixture dataset (optional local harness)
 
-Four 32x32 PNG swatches plus ai-toolkit-style `.txt` captions, ~230 bytes per image. They are
-the training set for the dispatch-gated GPU compat smoke (`deploy/compat_smoke.py`, issue #29):
-enough signal for a denoising loss to move LoRA weights, small enough that the repo stays a
-source repo and not a data repo.
+Four 32x32 PNG swatches plus ai-toolkit-style `.txt` captions, ~230 bytes per image. Used only
+if someone hand-runs `deploy/compat_smoke.py` on a local card. The Plane C card workflow is
+**retired 2026-08-06**; Wan A14B readiness is **RunPod**, not these fixtures.
 
-They are NOT a quality fixture. Nothing here says anything about Wan output; the smoke only
-answers "does this dependency set install, import, and complete a real train step on a GPU".
+They are NOT a quality fixture and say nothing about Wan 2.2 A14B output.
 
 Regenerate (deterministic, stdlib only, no Pillow):
 
