@@ -8,9 +8,15 @@ Job input (same wire shape the control plane already sends to train_lora):
     "model_family": "wan",           # optional; defaults to wan on this endpoint
     "pretrained_loras": {},          # optional slot -> existing lora key passthrough
     "render_overrides": {},          # ignored here (this endpoint only trains)
-    "train_overrides": {}            # optional, allow-listed: batch_size / steps / resolution (#22).
+    "train_overrides": {},           # optional, allow-listed: batch_size / steps / resolution (#22).
                                      # Absent = the shipped WanLoraTrainConfig defaults. An unknown
                                      # key or an out-of-range value is REFUSED, never dropped.
+    "r2": {                          # optional per-job tenant credential (pooled hosted pool).
+      "endpoint": "...",             # PRESENT + malformed = refuse (never fall back to env).
+      "access_key_id": "...",        # ABSENT = R2_* env (operator CF studio / dedicated EP).
+      "secret_access_key": "...",    # Stripped before anything downstream of the store.
+      "bucket": "..."
+    }
   }
 
 Returns: { project, lora: { slot: { lora_id_high, lora_id_low, family: "wan" } }, ... }
@@ -29,8 +35,8 @@ from wan_train.r2 import R2, R2Config
 from wan_train.redact import redact_error_message
 
 
-def _store():
-    return R2(R2Config.from_env())
+def _store(inp: dict | None):
+    return R2(R2Config.from_payload_or_env(inp))
 
 
 def _selftest(inp: dict) -> dict:
@@ -64,6 +70,12 @@ def handler(job: dict) -> dict:
         keys.check_job_id_slug(job_id, what="job_id")
     except ValueError as e:
         return {"ok": False, "error": redact_error_message(e)}
+    try:
+        store = _store(inp)
+    except Exception as e:
+        return {"ok": False, "error": redact_error_message(e)}
+    # Credential block is consumed at the store. Downstream never sees it.
+    payload = R2Config.strip_from_payload(inp if isinstance(inp, dict) else {})
     base = os.environ.get("WAN_TRAIN_WORKDIR")
     if base:
         work = Path(base) / job_id
@@ -71,7 +83,7 @@ def handler(job: dict) -> dict:
     else:
         work = Path(tempfile.mkdtemp(prefix="wan-train-"))
     try:
-        return run_job(job, store=_store(), workdir=work, job_id=job_id,
+        return run_job({"input": payload}, store=store, workdir=work, job_id=job_id,
                        on_progress=(job or {}).get("progress_update"))
     except JobError as e:
         return {"ok": False, "error": redact_error_message(e)}

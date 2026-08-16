@@ -25,9 +25,25 @@ Same payload the control plane already sends:
   "project": "my-film",
   "bundle_key": "bundles/my-film/....tar.gz",
   "model_family": "wan",
-  "train_overrides": { "steps": 2000 }
+  "train_overrides": { "steps": 2000 },
+  "r2": {
+    "endpoint": "https://<account>.r2.cloudflarestorage.com",
+    "access_key_id": "...",
+    "secret_access_key": "...",
+    "bucket": "tenant-bucket"
+  }
 }
 ```
+
+`r2` is optional. Same rule as `vivijure-backend`:
+
+1. **Absent** (key omitted) -> the four `R2_*` endpoint env vars. Operator CF studio and
+   dedicated endpoints keep working unchanged.
+2. **Present and valid** -> used for that job's tenant I/O only.
+3. **Present but malformed** -> the job **fails**. It does not fall back to env. An explicit
+   `"r2": null` is refused the same way; omit the key, do not send a null.
+4. The block is stripped before anything downstream of the store. Refusal messages name
+   fields, never values.
 
 Returns dual expert keys under `lora[slot].lora_id_high` / `lora_id_low`, plus `train_config`: the
 knobs the run actually trained under.
