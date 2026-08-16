@@ -19,7 +19,7 @@ def test_handler_uses_per_job_subdir_when_workdir_env_set(tmp_path, monkeypatch)
         return {"ok": True}
 
     monkeypatch.setattr(handler, "run_job", fake_run_job)
-    monkeypatch.setattr(handler, "_store", lambda: object())
+    monkeypatch.setattr(handler, "_store", lambda inp=None: object())
 
     handler.handler({"id": "job-a", "input": {"action": "train_lora", "project": "neon", "bundle_key": "bundles/neon.tar.gz"}})
     handler.handler({"id": "job-b", "input": {"action": "train_lora", "project": "neon", "bundle_key": "bundles/neon.tar.gz"}})

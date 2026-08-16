@@ -10,6 +10,14 @@ Newest first.
 
 ## Unreleased
 
+- **Per-job tenant R2 on the train payload.** A SHARED hosted pool can train many tenants:
+  the job input may carry an `r2` block (`endpoint`, `access_key_id`, `secret_access_key`,
+  `bucket`; optional `session_token`) and that credential is used for that job only.
+  PRESENT + malformed refuses (never falls back to the endpoint env, including an explicit
+  `"r2": null`). ABSENT (key omitted) is `from_env`, so an operator CF studio / dedicated
+  endpoint keeps working. The block is stripped before anything downstream of the store.
+  Refusal messages name fields, never values.
+
 - **Retire Plane C card `compat-smoke` workflow (2026-08-06).** Wan 2.2 A14B does not run
   realistically on workstation RTX 4000-class cards; the local GPU smoke was ceremony over
   non-prod conditions. Image bake stays on Plane C (`bake-capable` disk lane). Train readiness
