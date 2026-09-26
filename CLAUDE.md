@@ -45,14 +45,16 @@ no longer ships `:train-*` after decouple.
 ```bash
 PYTHONPATH=src pytest          # CPU unit suite
 python -m py_compile handler.py  # when present at root / entry
-# Image bake: .github/workflows/build-image.yml (Plane C bake-capable disk lane)
-# Train gate: live RunPod endpoint (not local RTX 4000 / not Plane C card smoke)
+# Image bake: .github/workflows/build-image.yml -- DISABLED 2026-09-25, fails closed. It needs
+# 200+ GB scratch disk and ran on the Hetzner fleet (decommissioned 2026-09-24); no current
+# runner has that disk. See the workflow's own header for the full account.
+# Train gate: live RunPod endpoint only (never local-card or bake-runner card smoke)
 ```
 
 ## Pre-prod GPU test spend (Conrad, 2026-08-06) -- do not thrift here
 
 **Never hold back RunPod spend when proving an image before it is production-pinned.** A green
-Plane C bake is not a proven train. Local RTX 4000-class / Plane C card smoke is retired; A14B
+image bake is not a proven train. Local RTX 4000-class card smoke is retired; A14B
 runs on datacenter GPUs. Pre-prod verification is **expected spend**, not an escalation.
 
 Pick **one** of these for the gate (either is fine; pick what fits the change):
@@ -77,7 +79,10 @@ Never trust: CI green alone, bake green alone, Hub pin green alone, or a local w
 
 ## Deploy / pin discipline
 
-1. Bake image (`train-*`) via dispatch; confirm pullable GHCR artifact.
+1. Bake image (`train-*`) via dispatch; confirm pullable GHCR artifact. **Currently blocked**:
+   the bake fails closed as of 2026-09-25 (no runner has the 200+ GB scratch disk it needs since
+   the Hetzner fleet was decommissioned; see `build-image.yml`'s own header). Provisioning a
+   builder with that disk is a spend/topology call, Conrad's per the workflow's own note.
 2. **Pre-prod GPU proof** per the table above (SecurePod **or** serverless with workersMin=1);
    restore workersMin/active to **0** if you used the serverless path.
 3. Repin `.runpod/Dockerfile` tag+digest; Hub pin check must stay green.
