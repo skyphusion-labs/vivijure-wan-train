@@ -1,7 +1,33 @@
 name: Build Wan train image to GHCR
 
 # workflow_dispatch ONLY. Publishes ghcr.io/skyphusion-labs/vivijure-wan-train:train-<version>
-# (successor to vivijure-backend:train-*). Runs on Plane C [self-hosted, bake-capable].
+# (successor to vivijure-backend:train-*).
+#
+# DISABLED 2026-09-25, FAILS CLOSED. This bake cannot run on any runner we still have.
+#
+# WHAT IT NEEDED: a builder with several hundred GB of scratch disk. The job stages the Wan
+# weights into HF_HOME and asserts at least 55 GB landed (`bake_layers.py assert-weights
+# --min-gb 55`), bin-packs that same 55 GB into 12 layer bins under a 9.6 GB ceiling (so both
+# copies are on disk at once before the `rm -rf`), then builds an image containing them with
+# `load: true`, which materialises another full copy in the local docker image store. Peak is
+# comfortably past 200 GB.
+#
+# WHY IT IS OFF: it ran on Plane C `[self-hosted, bake-capable]`, which was the Hetzner fleet.
+# The fleet was decommissioned 2026-09-24 (cost) and the label now matches no runner. A dead
+# label does NOT fail a job, it QUEUES it, indefinitely and with no error anywhere, which is
+# the worst available failure mode: a dispatch just hangs as a pending check. GitHub-hosted
+# `ubuntu-latest` is the only live CI plane and it has roughly 14 GB free, or roughly 70 GB
+# after an aggressive reclaim. That is not within an order of magnitude of what this needs, so
+# repointing the label would only trade a silent hang for a confusing out-of-disk failure deep
+# in a weights download.
+#
+# The `runs-on` is set to `ubuntu-latest` so this file no longer carries a dead label, and the
+# job fails closed on its first step instead. The full build recipe below is left intact and
+# unmodified: re-enabling is deleting the `Disabled` step and pointing `runs-on` at a builder
+# that has the disk. It is NOT a rewrite.
+#
+# This is a capability gap, not a defect to route around. A builder with the disk is a spend
+# and topology decision, and it is Conrad's.
 
 on:
   workflow_dispatch:
@@ -32,9 +58,17 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: [self-hosted, bake-capable]
+    runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
+      # Fail closed. See the DISABLED note in the header: this bake needs 200+ GB of scratch
+      # disk and the pool that had it is gone. Delete this step to re-enable, and point
+      # `runs-on` at a builder with the disk.
+      - name: Disabled -- no builder with the required disk
+        run: |
+          echo "::error::vivijure-wan-train image bake is DISABLED (2026-09-25). It needs 200+ GB of scratch disk (55 GB of Wan weights, staged, then bin-packed, then loaded into the local docker store). It ran on Plane C [self-hosted, bake-capable]; that fleet was decommissioned 2026-09-24. ubuntu-latest has ~14 GB free (~70 GB after reclaim) and cannot host this build. Failing closed rather than queueing forever on a dead label."
+          exit 1
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
