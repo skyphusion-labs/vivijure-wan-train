@@ -111,6 +111,8 @@ as `Conrad Rockenhaus <conrad@skyphusion.org>`. Conventional Commits.
 
 ## Release / deploy
 
-**Tag-gated production deploy.** Merges to `main` run CI only; they do not ship production.
-Cut an annotated SemVer tag on `main` to release (`git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`).
-Deploy workflows assert the tag commit is an ancestor of `origin/main`.
+Merges to `main` run CI only. They do not bake or publish an image.
+`.github/workflows/build-image.yml` is `workflow_dispatch` only and fails closed
+(disabled 2026-09-25; see that file's header). A repo `v*` tag does not run a
+workflow. Cutting one does not ship an image. Hub re-index is the reason a `v*`
+tag exists at all (see the top of this file and `CHANGELOG.md`).
