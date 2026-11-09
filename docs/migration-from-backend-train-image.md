@@ -45,4 +45,4 @@ Re-pin template to `ghcr.io/skyphusion-labs/vivijure-backend:train-0.2.2` (immut
 
 ## Homelab
 
-Do **not** set `RUNPOD_WAN_TRAIN_ENDPOINT_ID` on propagandhi. Local `/train-lora` uses SDXL on the render endpoint.
+Do **not** set `RUNPOD_WAN_TRAIN_ENDPOINT_ID` on the retired homelab host. Local `/train-lora` uses SDXL on the render endpoint.
