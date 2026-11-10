@@ -3,7 +3,8 @@ name: Build Wan train image to GHCR
 # workflow_dispatch ONLY. Publishes ghcr.io/skyphusion-labs/vivijure-wan-train:train-<version>
 # (successor to vivijure-backend:train-*).
 #
-# DISABLED 2026-09-25, FAILS CLOSED. This bake cannot run on any runner we still have.
+# RETIRED (Conrad, 2026-11-10): wan-train is no longer used at all. DISABLED 2026-09-25, FAILS CLOSED;
+# the Vultr bake host carve-out of 2026-10-30 does not apply, and this bake is not to be revived.
 #
 # WHAT IT NEEDED: a builder with several hundred GB of scratch disk. The job stages the Wan
 # weights into HF_HOME and asserts at least 55 GB landed (`bake_layers.py assert-weights
